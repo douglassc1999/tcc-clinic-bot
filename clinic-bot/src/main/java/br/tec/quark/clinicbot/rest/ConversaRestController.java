@@ -6,8 +6,12 @@ import br.tec.quark.clinicbot.service.ChatBotService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/chat")
@@ -18,13 +22,13 @@ public class ConversaRestController {
     private final ChatBotService chatBotService;
 
     //Detectar intenção
-    @PostMapping()
-    public ConversaDTO detectarIntecao(String texto) {
+    @PostMapping("/intencao")
+    public ConversaDTO detectarIntecao(@RequestParam("texto") String texto) {
         return chatBotService.detectarIntecao(texto);
     }
 
-    @PostMapping()
-    public ConversaDTO marcarConsulta(AgendarOnlineRequest agendarOnlineRequest) {
+    @PostMapping("/marcar-consulta")
+    public List<ConversaDTO> marcarConsulta(@RequestBody AgendarOnlineRequest agendarOnlineRequest) {
         return chatBotService.marcarConsulta(agendarOnlineRequest);
     }
 

@@ -8,6 +8,8 @@ import java.util.Date;
 @Setter
 @Getter
 public class AgendarOnlineRequest {
+    private Long organizacaoId;
+    private Long clinicaId;
     private Long usuarioPortalId;
     private Long convenioId;
     private Long procedimentoId;

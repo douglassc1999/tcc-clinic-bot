@@ -13,5 +13,5 @@ import lombok.Setter;
 public class ConversaDTO {
     private IntencaoEnum intencao;
     private String text;
-    private String type = "text";
+    private String type = "text"; // text, image, link, video, table
 }
