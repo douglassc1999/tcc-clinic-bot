@@ -1,0 +1,27 @@
+<div style="height: 200px;
+width: 400px;
+overflow-y: auto;" id='scroll'>
+  <div *ngFor="let item of mensagens" style="padding: 10px 0 10px 0;">
+    <div [ngClass]="item.direct === 'right' ? 'sb1' : 'sb2'">{{item.text}}</div> <br />
+  </div>
+</div>
+
+
+<form style="margin-top: 50px;" nz-form [formGroup]="validateForm" class="login-form">
+  <nz-form-item>
+    <nz-form-control nzErrorTip="Please input your username!">
+      <nz-input-group>
+        <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
+          <input formControlName="message" type="text" nz-input placeholder="input search text" />
+        </nz-input-group>
+        <ng-template #suffixIconButton>
+          <button nz-button nzType="primary" nzSearch (click)="enviar()">
+            <span nz-icon nzType="search"></span>
+          </button>
+        </ng-template>
+      </nz-input-group>
+    </nz-form-control>
+  </nz-form-item>
+
+  <!-- <button nz-button class="login-form-button login-form-margin" [nzType]="'primary'">Log in</button> -->
+</form>
