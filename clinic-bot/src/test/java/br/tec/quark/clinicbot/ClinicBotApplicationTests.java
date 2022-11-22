@@ -1,42 +1,153 @@
 package br.tec.quark.clinicbot;
 
-import opennlp.tools.namefind.NameFinderME;
-import opennlp.tools.namefind.TokenNameFinderModel;
-import opennlp.tools.tokenize.SimpleTokenizer;
-import opennlp.tools.util.Span;
-import org.assertj.core.api.Assertions;
+import opennlp.tools.doccat.BagOfWordsFeatureGenerator;
+import opennlp.tools.doccat.DoccatFactory;
+import opennlp.tools.doccat.DoccatModel;
+import opennlp.tools.doccat.DocumentCategorizerME;
+import opennlp.tools.doccat.DocumentSample;
+import opennlp.tools.doccat.DocumentSampleStream;
+import opennlp.tools.doccat.FeatureGenerator;
+import opennlp.tools.lemmatizer.LemmatizerME;
+import opennlp.tools.lemmatizer.LemmatizerModel;
+import opennlp.tools.postag.POSModel;
+import opennlp.tools.postag.POSTaggerME;
+import opennlp.tools.sentdetect.SentenceDetectorME;
+import opennlp.tools.sentdetect.SentenceModel;
+import opennlp.tools.tokenize.TokenizerME;
+import opennlp.tools.tokenize.TokenizerModel;
+import opennlp.tools.util.InputStreamFactory;
+import opennlp.tools.util.MarkableFileInputStreamFactory;
+import opennlp.tools.util.ObjectStream;
+import opennlp.tools.util.PlainTextByLineStream;
+import opennlp.tools.util.TrainingParameters;
+import opennlp.tools.util.model.ModelUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.List;
 
 @SpringBootTest
 class ClinicBotApplicationTests {
 
 	@Test
 	void contextLoads() throws IOException {
-//		SimpleTokenizer tokenizer = new SimpleTokenizer();;
-//		String tokens[] = tokenizer.tokenize("Douglas de Souza Carvalho.");
-//		System.out.println(tokens);
+		String text = "pode ser";
 
+		// Sentence detection
+		String[] sents = detectSentences(text);
 
-		SimpleTokenizer tokenizer = SimpleTokenizer.INSTANCE;
-		String[] tokens = tokenizer
-				.tokenize("John is 26 years old. His best friend's "
-						+ "name is Leonard. He has a sister named Penny.");
+		// Tokenization
+		String[] tokens = tokenize(text);
 
-		InputStream inputStreamNameFinder = getClass()
-				.getResourceAsStream("/models/en-ner-person.bin");
-		TokenNameFinderModel model = new TokenNameFinderModel(
-				inputStreamNameFinder);
-		NameFinderME nameFinderME = new NameFinderME(model);
-		List<Span> spans = Arrays.asList(nameFinderME.find(tokens));
+		// POS Tagging
+		String[] posTags = posTag(tokens);
 
-		Assertions.assertThat(spans.toString())
-				.isEqualTo("[[0..1) person, [13..14) person, [20..21) person]");
+		// Lemmatization
+		String[] lemmas = lemmatize(tokens, posTags);
+
+		DoccatModel model = trainsCategorizerModel();
+
+		//Categorizing/Chucking
+		String category = categorize(model, lemmas);
+
+//		System.out.println(text);
+//		for (String sentece: sents) System.out.print(" | " + sentece);
+//		System.out.println("\n");
+//
+//		for (String token: tokens) System.out.print(" | " + token);
+//		System.out.println("\n");
+
 	}
+
+
+	public static String[] detectSentences(String sentence) throws IOException {
+
+		InputStream input = new FileInputStream("/home/douglas/Área de Trabalho/tcc-clinic-bot/clinic-bot/pt-sent.bin");
+
+		SentenceModel model = new SentenceModel(input);
+
+		SentenceDetectorME detector = new SentenceDetectorME(model);
+
+		String sentences[] = detector.sentDetect(sentence);
+
+		return sentences;
+	}
+
+	public static String[] tokenize(String text) throws IOException {
+
+		InputStream input = new FileInputStream("/home/douglas/Área de Trabalho/tcc-clinic-bot/clinic-bot/en-token.bin");
+
+		TokenizerModel model = new TokenizerModel(input);
+
+		TokenizerME tokenizer = new TokenizerME(model);
+
+		String[] tokens = tokenizer.tokenize(text);
+
+		return tokens;
+	}
+
+	public static String[] posTag(String[] tokens) throws IOException {
+
+		InputStream input = new FileInputStream("/home/douglas/Área de Trabalho/tcc-clinic-bot/clinic-bot/pt-pos-maxent.bin");
+
+		POSModel model = new POSModel(input);
+
+		POSTaggerME tagger = new POSTaggerME(model);
+
+		String[] tags = tagger.tag(tokens);
+
+		return tags;
+	}
+
+	public static String[] lemmatize(String[] tokens, String[] posTags) throws IOException {
+
+		InputStream input = new FileInputStream("/home/douglas/Área de Trabalho/tcc-clinic-bot/clinic-bot/en-lemmatizer.bin");
+
+		LemmatizerModel model = new LemmatizerModel(input);
+
+		LemmatizerME categorizer = new LemmatizerME(model);
+
+		String[] lemmaTokens = categorizer.lemmatize(tokens, posTags);
+
+		return lemmaTokens;
+	}
+
+	public static DoccatModel trainsCategorizerModel() throws IOException {
+
+		InputStreamFactory inputStreamFactory = new MarkableFileInputStreamFactory(new File("categorias.txt"));
+		ObjectStream<String> lineStream = new PlainTextByLineStream(inputStreamFactory, StandardCharsets.UTF_8);
+		ObjectStream<DocumentSample> sampleStream = new DocumentSampleStream(lineStream);
+
+		DoccatFactory factory = new DoccatFactory(new FeatureGenerator[] { new BagOfWordsFeatureGenerator()} );
+
+		TrainingParameters params = ModelUtil.createDefaultTrainingParameters();
+		params.put(TrainingParameters.CUTOFF_PARAM, 1);
+
+		DoccatModel model = DocumentCategorizerME.train("en", sampleStream, params, factory);
+
+		return model;
+	}
+
+	public static String categorize(DoccatModel model, String[] tokens) throws IOException {
+
+		DocumentCategorizerME myCategorizer = new DocumentCategorizerME(model);
+
+		double[] probabilitiesOfOutcomes = myCategorizer.categorize(tokens);
+		final var isAllEquals = Arrays.stream(probabilitiesOfOutcomes).distinct().count() == 1;
+
+		if (isAllEquals) {
+			return "FINALIZAR";
+		}
+		String category = myCategorizer.getBestCategory(probabilitiesOfOutcomes);
+		System.out.println("Category: " + category);
+
+		return category;
+	}
+
 
 }

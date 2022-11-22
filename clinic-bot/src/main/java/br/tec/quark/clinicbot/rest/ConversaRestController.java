@@ -50,7 +50,8 @@ public class ConversaRestController {
         // TODO: REGISTRO DE CONVERSA
         final var textoIntencao = chatBotService.detectarIntecao(texto);
 
-        if (textoIntencao != null && agendarOnlineRequest.getFluxo() == null) {
+        if (textoIntencao != null && agendarOnlineRequest.getFluxo() == null ||
+            textoIntencao.getIntencao() != null && List.of(IntencaoEnum.FINALIZAR, IntencaoEnum.NAO_IDENTIFICADO).contains(textoIntencao.getIntencao())) {
             final var result = List.of(textoIntencao);
 
             final var ehFinalizado = result.stream()

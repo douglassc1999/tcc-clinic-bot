@@ -3,6 +3,7 @@ package br.tec.quark.clinicbot.service;
 import br.tec.quark.clinicbot.dto.AgendarOnlineRequest;
 import br.tec.quark.clinicbot.dto.ConversaDTO;
 import br.tec.quark.clinicbot.enums.IntencaoEnum;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -12,17 +13,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ChatBotService {
 
     private final static List<String> saudacaoList = List.of("ola", "oi", "bom dia", "boa tarde", "boa noite");
     private final static List<String> marcarConsultaList = List.of("marcar", "agendar", "fazer um agendamento");
     private final static List<String> cancelarConsultaList = List.of("cancelar");
     private final static List<String> historicoConsultaList = List.of("historico");
+
+    private final OpenNLPService openNLPService;
 
     @Value("${quark.mol.url}")
     private String urlMol;
@@ -36,7 +41,18 @@ public class ChatBotService {
         final var textoLowerCase = texto.toLowerCase();
         var text = "";
 
-        if(saudacaoList.contains(textoLowerCase)) {
+        String categoria;
+        try {
+            categoria = openNLPService.contextLoads(textoLowerCase);
+        } catch (IOException e) {
+            log.error("Erro ao tentar categorizar mensagem de usuário: ", e);
+            categoria = "NÃO DETECTADO";
+        }
+
+        log.info("Categoria: " + categoria);
+
+//        if(saudacaoList.contains(textoLowerCase)) {
+        if("SAUDACAO".equals(categoria)) {
 
             text = "Olá, tudo bem? Sou o assistente virtual do quarkClinic, em que posso ajudá-lo? " +
                     "Temos as seguintes opções: Marcar consulta, cancelar consulta e histórico de consultas.";
@@ -44,7 +60,8 @@ public class ChatBotService {
                     .intencao(IntencaoEnum.SAUDACAO)
                     .text(text)
                     .build();
-        } else if (marcarConsultaList.contains(textoLowerCase)) {
+//        } else if (marcarConsultaList.contains(textoLowerCase)) {
+        } else if ("MARCAR_CONSULTA".equals(categoria)) {
 
             text = "Entao voce quer marcar uma consulta, Ok! Vamos la!";
             return ConversaDTO.builder()
@@ -52,7 +69,8 @@ public class ChatBotService {
                     .text(text)
                     .build();
 
-        } else if (cancelarConsultaList.contains(textoLowerCase)) {
+//        } else if (cancelarConsultaList.contains(textoLowerCase)) {
+        } else if ("CANCELAR_CONSULTA".equals(categoria)) {
 
             text = "Então você quer cancelar uma consulta, ok! Vamos lá!";
             return ConversaDTO.builder()
@@ -60,11 +78,19 @@ public class ChatBotService {
                     .text(text)
                     .build();
 
-        } else if (historicoConsultaList.contains(textoLowerCase)) {
+        } else if ("HISTORICO".equals(categoria)) {
 
             text = "Então você quer ver seu histórico de consultas, ok! Vamos lá!";
             return ConversaDTO.builder()
                     .intencao(IntencaoEnum.HISTORICO)
+                    .text(text)
+                    .build();
+
+        } else if ("FINALIZAR".equals(categoria)) {
+
+            text = "Até a pŕoxima!";
+            return ConversaDTO.builder()
+                    .intencao(IntencaoEnum.FINALIZAR)
                     .text(text)
                     .build();
         } else {
