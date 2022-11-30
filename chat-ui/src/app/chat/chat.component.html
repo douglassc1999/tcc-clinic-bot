@@ -1,9 +1,17 @@
 <div style="height: 200px;
 width: 400px;
 overflow-y: auto;" id='scroll'>
+<!-- <div  id='scroll'> -->
   <div *ngFor="let item of mensagens" style="padding: 10px 0 10px 0;">
-    <div [ngClass]="item.direct === 'right' ? 'sb1' : 'sb2'">{{item.text}}</div> <br />
+    <div *ngIf="item.responseList?.length" [ngClass]="item.direct === 'right' ? 'sb1' : 'sb2'">
+      <nz-radio-group *ngFor="let i of item.responseList">
+        <br/> <label nz-radio (click)="setCampos(i.id, i.nome)" [nzValue]="i.id"> {{ i.nome }} </label>
+      </nz-radio-group>
+    </div> <br/>
+    <div *ngIf="!item.responseList?.length" [ngClass]="item.direct === 'right' ? 'sb1' : 'sb2'">{{item.text}}</div> <br />
   </div>
+  <br/>
+  <div *ngIf="loading" style="width: 600px;"><nz-spin nzSimple style="width: 250px; margin: 0 auto;"></nz-spin></div>
 </div>
 
 

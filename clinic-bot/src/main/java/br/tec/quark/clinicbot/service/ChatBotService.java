@@ -5,13 +5,8 @@ import br.tec.quark.clinicbot.dto.ConversaDTO;
 import br.tec.quark.clinicbot.enums.IntencaoEnum;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -28,9 +23,7 @@ public class ChatBotService {
     private final static List<String> historicoConsultaList = List.of("historico");
 
     private final OpenNLPService openNLPService;
-
-    @Value("${quark.mol.url}")
-    private String urlMol;
+    private final MolApiService molApiService;
 
     public final ConversaDTO detectarIntecao(String texto) {
 
@@ -113,7 +106,7 @@ public class ChatBotService {
 
         try {
 
-            this.marcarConsultaMol(agendamento);
+            this.molApiService.marcarConsultaMol(agendamento);
 
             return List.of(ConversaDTO.builder()
                     .text("Consulta realizada, obrigado")
@@ -124,7 +117,7 @@ public class ChatBotService {
             log.error("Erro de conexão com mol", e);
 
             return List.of(ConversaDTO.builder()
-                    .text("Deu ruim, tente novamente mais tarde!")
+                    .text("Deu ruim, tente novamente mais tarde!" + e.getMessage())
                     .intencao(IntencaoEnum.FINALIZAR)
                     .build());
         }
@@ -135,44 +128,76 @@ public class ChatBotService {
 
         final var conversas = new ArrayList<ConversaDTO>();
 
-        if (agendamento.getClinicaId() == null) {
+        if (agendamento.getConvenioId() == null) {
+            final var convenios = this.molApiService.buscarConvenios(agendamento);
+            conversas.add(ConversaDTO.builder()
+                    .text("Você precisa escolher o convênio: ")
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
+                    .build());
+            conversas.add(ConversaDTO.builder()
+                    .responseList(convenios)
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
+                    .build());
+        } else if (agendamento.getProcedimentoId() == null) {
+            final var procedimentos = this.molApiService.buscarProcedimentos(agendamento);
+
+            conversas.add(ConversaDTO.builder()
+                    .text("Você precisa escolher o procedimento: ")
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
+                    .build());
+            conversas.add(ConversaDTO.builder()
+                    .responseList(procedimentos)
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
+                    .build());
+
+        } else if (agendamento.getClinicaId() == null) {
+            final var clinicas = this.molApiService.buscarClinicas(agendamento);
             conversas.add(ConversaDTO.builder()
                     .text("Em qual clínica deseja ser atendido? ")
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
                     .build());
 
             // TODO: TEM QUE BUSCAR OS DADOS DO MOL
             conversas.add(ConversaDTO.builder()
-                    .text("Treinamento Quarkclinic, tabajara")
+                    .responseList(clinicas)
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
                     .build());
-        } else if (agendamento.getConvenioId() == null) {
-            conversas.add(ConversaDTO.builder()
-                    .text("Você precisa escolher o convênio: ")
-                    .build());
-            conversas.add(ConversaDTO.builder()
-                    .text("PARTICULAR, AMIL, UNIMED")
-                    .build());
-        } else if (agendamento.getProcedimentoId() == null) {
+        } else if (agendamento.getProfissionalId() == null) {
 
-            conversas.add(ConversaDTO.builder()
-                    .text("Você precisa escolher o procedimento: ")
-                    .build());
-            conversas.add(ConversaDTO.builder()
-                    .text("PRIMEIRA CONSULTA, AJUSTE OCLUSAL, CHECK-UP")
-                    .build());
-        } else if (agendamento.getAgendaId() == null) {
+            final var profissionais = this.molApiService.buscarProfissionais(agendamento);
 
             conversas.add(ConversaDTO.builder()
                     .text("Você precisa escolher o profissional: ")
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
+                    .build());
+
+            conversas.add(ConversaDTO.builder()
+                    .responseList(profissionais)
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
+                    .build());
+        } else if (agendamento.getAgendaId() == null) {
+
+            final var horarios = this.molApiService.buscarHorarios(agendamento);
+
+            conversas.add(ConversaDTO.builder()
+                    .text("Você precisa escolher a agenda: ")
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
                     .build());
             conversas.add(ConversaDTO.builder()
-                    .text("Floriwaldo, Douglas Uzumaki")
+                    .responseList(horarios)
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
                     .build());
         } else if (agendamento.getHoraAgendamento() == null) {
+
+            final var horarios = this.molApiService.buscarHorarios(agendamento);
+
             conversas.add(ConversaDTO.builder()
-                    .text("Você precisa escolher o agendamento: ")
+                    .text("Você precisa escolher o horário: ")
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
                     .build());
             conversas.add(ConversaDTO.builder()
-                    .text("12:00, 14:00, 16:00")
+                    .responseList(horarios)
+                    .intencao(IntencaoEnum.MARCAR_CONSULTA)
                     .build());
         }
 
@@ -181,17 +206,49 @@ public class ChatBotService {
         return conversas;
     }
 
-    public void marcarConsultaMol(AgendarOnlineRequest agendamento) {
-        RestTemplate restTemplate = new RestTemplate();
-        HttpHeaders header = new HttpHeaders();
-        header.set("X-Organizacao-ID", String.valueOf(agendamento.getOrganizacaoId()));
-        header.setContentType(MediaType.APPLICATION_JSON);
+    public List<ConversaDTO> cancelarConsulta(AgendarOnlineRequest agendarOnlineRequest) {
 
-        HttpEntity<AgendarOnlineRequest> requestEntity = new HttpEntity<>(agendamento, header);
-        restTemplate.postForObject(
-                urlMol + "/api/chatbot/agendamento",
-                requestEntity,
-                AgendarOnlineRequest.class
-        );
+        final var conversas = new ArrayList<ConversaDTO>();
+
+        if (agendarOnlineRequest.getMarcacaoCancelarId() == null) {
+            conversas.add(ConversaDTO.builder()
+                    .text("Você precisa fornecer a identificação da marcação que quer cancelar!")
+                    .intencao(IntencaoEnum.CANCELAR_CONSULTA)
+                    .build());
+
+            return conversas;
+        } else if (agendarOnlineRequest.getMotivo() == null) {
+            conversas.add(ConversaDTO.builder()
+                    .text("Forneça um motivo para o cancelamento!")
+                    .intencao(IntencaoEnum.CANCELAR_CONSULTA)
+                    .build());
+
+            return conversas;
+        }
+
+        try {
+
+            this.molApiService.cancelarConsulta(agendarOnlineRequest);
+
+            return List.of(ConversaDTO.builder()
+                    .text("Consulta cancelada, obrigado")
+                    .intencao(IntencaoEnum.FINALIZAR)
+                    .build());
+        } catch (RestClientException e) {
+
+            log.error("Erro de conexão com mol", e);
+
+            return List.of(ConversaDTO.builder()
+                    .text("Deu ruim, tente novamente mais tarde!" + e.getMessage())
+                    .intencao(IntencaoEnum.FINALIZAR)
+                    .build());
+        }
+    }
+
+    public List<ConversaDTO> historicoConsulta(AgendarOnlineRequest agendarOnlineRequest) {
+        return List.of(ConversaDTO.builder()
+                .text(this.molApiService.buscarHistorico(agendarOnlineRequest))
+                .intencao(IntencaoEnum.FINALIZAR)
+                .build());
     }
 }

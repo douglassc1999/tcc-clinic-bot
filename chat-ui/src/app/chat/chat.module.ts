@@ -6,6 +6,9 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzRadioModule } from 'ng-zorro-antd/radio';
+import { FormsModule } from '@angular/forms';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
 
 const routes: Route[] = [{ path: "", component: ChatComponent }];
 
@@ -16,7 +19,10 @@ const routes: Route[] = [{ path: "", component: ChatComponent }];
     NzFormModule,
     ReactiveFormsModule,
     NzInputModule,
-    NzButtonModule
+    NzButtonModule,
+    NzRadioModule,
+    FormsModule,
+    NzSpinModule
   ],
   declarations: [ChatComponent]
 })

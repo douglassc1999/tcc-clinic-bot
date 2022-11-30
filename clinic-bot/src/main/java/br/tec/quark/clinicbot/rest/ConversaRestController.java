@@ -50,8 +50,12 @@ public class ConversaRestController {
         // TODO: REGISTRO DE CONVERSA
         final var textoIntencao = chatBotService.detectarIntecao(texto);
 
+        if (List.of(IntencaoEnum.MARCAR_CONSULTA).contains(textoIntencao.getIntencao())) {
+            agendarOnlineRequest.setFluxo(IntencaoEnum.MARCAR_CONSULTA);
+        }
+
         if (textoIntencao != null && agendarOnlineRequest.getFluxo() == null ||
-            textoIntencao.getIntencao() != null && List.of(IntencaoEnum.FINALIZAR, IntencaoEnum.NAO_IDENTIFICADO).contains(textoIntencao.getIntencao())) {
+            textoIntencao.getIntencao() != null && List.of(IntencaoEnum.FINALIZAR).contains(textoIntencao.getIntencao())) {
             final var result = List.of(textoIntencao);
 
             final var ehFinalizado = result.stream()
@@ -76,13 +80,13 @@ public class ConversaRestController {
             return chatBotService.marcarConsulta(agendarOnlineRequest);
         }
 
-//        if (IntencaoEnum.CANCELAR_CONSULTA.equals(agendarOnlineRequest.getFluxo())) {
-//            return chatBotService.cancelarConsulta(agendarOnlineRequest);
-//        }
-//
-//        if (IntencaoEnum.HISTORICO.equals(agendarOnlineRequest.getFluxo())) {
-//            return chatBotService.historicoConsulta(agendarOnlineRequest);
-//        }
+        if (IntencaoEnum.CANCELAR_CONSULTA.equals(agendarOnlineRequest.getFluxo())) {
+            return chatBotService.cancelarConsulta(agendarOnlineRequest);
+        }
+
+        if (IntencaoEnum.HISTORICO.equals(agendarOnlineRequest.getFluxo())) {
+            return chatBotService.historicoConsulta(agendarOnlineRequest);
+        }
 
         return null;
     }

@@ -18,11 +18,14 @@ public class AgendarOnlineRequest {
     private Long usuarioPortalId;
     private Long convenioId;
     private Long procedimentoId;
+    private Long profissionalId;
     private Long agendaId;
     private Date horaAgendamento;
     private Long dependenteId;
 
     // CANCELAR CONSULTA
+    private Long marcacaoCancelarId;
+    private String motivo;
 
     // HISTORICO
 }
